@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ShopFlow{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="/" class="nav-brand" style="text-decoration:none">
+    <div class="brand-hex">⬡</div>
+    ShopFlow
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Dashboard</a>
+    <a href="/loja/nova" class="nav-link nav-cta">+ Nova Loja</a>
+  </div>
+</nav>
+
+<div class="main">
+  {% block content %}{% endblock %}
+</div>
+
+<script src="/static/js/main.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

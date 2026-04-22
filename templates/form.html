@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}{% if loja %}Editar {{ loja.nome }}{% else %}Nova Loja{% endif %} — ShopFlow{% endblock %}
+
+{% block content %}
+<a href="{% if loja %}/loja/{{ loja.id }}{% else %}/{% endif %}" class="back-link">← Voltar</a>
+
+<div class="page-header" style="margin-bottom:20px">
+  <h1>{% if loja %}Editar loja{% else %}Cadastrar nova loja{% endif %}</h1>
+</div>
+
+<!-- datalist de países para sugestão rápida -->
+<datalist id="paises-opcoes">
+  <option value="Global">
+  <option value="Brasil">
+  <option value="Portugal">
+  <option value="Espanha">
+  <option value="Reino Unido">
+  <option value="Estados Unidos">
+  <option value="França">
+  <option value="Alemanha">
+  <option value="Itália">
+  <option value="México">
+</datalist>
+
+<div class="form-card">
+  <form method="POST" action="/loja/salvar">
+    {% if loja %}
+    <input type="hidden" name="id" value="{{ loja.id }}">
+    {% endif %}
+
+    <div class="form-grid">
+
+      <!-- Nome e Domínio -->
+      <div class="field">
+        <label>Nome da loja *</label>
+        <input type="text" name="nome" value="{{ loja.nome if loja else '' }}" required placeholder="ex: VaultStyle">
+      </div>
+      <div class="field">
+        <label>Domínio *</label>
+        <input type="text" name="dominio" value="{{ loja.dominio if loja else '' }}" required placeholder="ex: vaultstyle.store">
+      </div>
+
+      <!-- Email -->
+      <div class="field form-full">
+        <label>Email de contato</label>
+        <input type="email" name="email" value="{{ loja.email if loja else '' }}" placeholder="ex: contact@loja.store">
+      </div>
+
+      <hr class="form-sep">
+
+      <!-- Entidade -->
+      <div class="field">
+        <label>Tipo de entidade</label>
+        <select name="entidade_tipo">
+          <option value="LTD" {% if loja and loja.entidade.tipo == 'LTD' %}selected{% endif %}>LTD</option>
+          <option value="LLC" {% if loja and loja.entidade.tipo == 'LLC' %}selected{% endif %}>LLC</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Nome do titular</label>
+        <input type="text" name="entidade_titular" value="{{ loja.entidade.titular if loja else '' }}" placeholder="ex: Roberto">
+      </div>
+
+      <div class="field">
+        <label>País da entidade</label>
+        <input type="text" name="pais_entidade" list="paises-opcoes"
+          value="{{ loja.pais_entidade if loja else '' }}" placeholder="ex: Reino Unido">
+      </div>
+      <div class="field">
+        <label>País de operação</label>
+        <input type="text" name="pais_operacao" list="paises-opcoes"
+          value="{{ loja.pais_operacao if loja else '' }}" placeholder="ex: Espanha, Global">
+      </div>
+
+      <hr class="form-sep">
+
+      <!-- Nicho e Status -->
+      <div class="field">
+        <label>Nicho</label>
+        <input type="text" name="nicho" value="{{ loja.nicho if loja else '' }}" placeholder="ex: Multimarcas, Moda, Tech">
+      </div>
+      <div class="field">
+        <label>Status atual</label>
+        <select name="status">
+          {% for s in ['Aquecendo', 'Rodando', 'Problema', 'Pausada'] %}
+          <option value="{{ s }}" {% if loja and loja.status == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <hr class="form-sep">
+
+      <!-- Banco e Gateways -->
+      <div class="field">
+        <label>Banco</label>
+        <input type="text" name="banco" value="{{ loja.banco if loja else '' }}" placeholder="ex: Payoneer, Wise, Mercury">
+      </div>
+
+      <div class="field form-full" style="margin-top:4px">
+        <label>Gateways de pagamento</label>
+        <div class="checkboxes">
+          {% set gw_opts = ['Shopify Payments', 'Payoneer', 'Stripe', 'PayPal', 'Wise', 'Mercury'] %}
+          {% for gw in gw_opts %}
+          <label class="check-label">
+            <input type="checkbox" name="gateways" value="{{ gw }}"
+              {% if loja and gw in loja.gateways %}checked{% endif %}>
+            {{ gw }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <hr class="form-sep">
+
+      <!-- Datas e Ciclo -->
+      <div class="field">
+        <label>Data de criação da loja</label>
+        <input type="date" name="data_criacao"
+          value="{{ loja.data_criacao if loja else '' }}">
+      </div>
+      <div class="field">
+        <label>Início do ciclo de pagamento</label>
+        <input type="date" name="data_ciclo_inicio"
+          value="{{ loja.data_ciclo_inicio if loja else '' }}">
+      </div>
+      <div class="field">
+        <label>Ciclo de pagamento (dias úteis)</label>
+        <input type="number" name="ciclo" min="1" max="60"
+          value="{{ loja.ciclo_pagamento_dias_uteis if loja else 7 }}" placeholder="ex: 5">
+      </div>
+
+      <!-- Botões -->
+      <div class="form-footer">
+        <a href="{% if loja %}/loja/{{ loja.id }}{% else %}/{% endif %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+          {% if loja %}Salvar alterações{% else %}Cadastrar loja{% endif %}
+        </button>
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}

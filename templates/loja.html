@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% block title %}{{ loja.nome }} — ShopFlow{% endblock %}
+
+{% block content %}
+<input type="hidden" id="loja-id" value="{{ loja.id }}">
+<input type="hidden" id="current-status" value="{{ loja.status }}">
+
+<a href="/" class="back-link">← Dashboard</a>
+
+<!-- ── HEADER ─────────────────────────────────────────────────────── -->
+<div class="loja-header">
+  <div style="flex:1">
+    <div class="loja-title-row">
+      <h1 class="loja-title">{{ loja.nome }}</h1>
+      <span class="badge badge-{{ loja.status|lower }}">{{ loja.status }}</span>
+      {% if loja._suspenso %}
+      <span class="badge" style="background:#2b0d0d;color:#ef4444;border:1px solid #5c1a1a">⚠ Gateway Suspenso</span>
+      {% endif %}
+    </div>
+    <div class="loja-domain">{{ loja.dominio }}</div>
+
+    <div class="loja-meta">
+      <div class="meta-item">
+        <span class="meta-label">Data de criação da loja</span>
+        <span class="meta-val">{{ loja.data_criacao or loja.get('data_inicio') or '—' }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Email</span>
+        <span class="meta-val">{{ loja.email }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Entidade</span>
+        <span class="meta-val">{{ loja.entidade.tipo }} · {{ loja.entidade.titular }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">País da entidade</span>
+        <span class="meta-val">{{ loja.pais_entidade }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">País de operação</span>
+        <span class="meta-val">{{ loja.pais_operacao }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Nicho</span>
+        <span class="meta-val">{{ loja.nicho }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- countdown / suspended -->
+  {% if loja._suspenso %}
+  <div class="countdown-block alert-red" style="min-width:160px; flex-direction:column; align-items:center; gap:4px">
+    <div class="countdown-label">Gateway</div>
+    <div class="countdown-days" style="font-size:20px">RETIDO</div>
+    <div class="countdown-sub">pagamentos suspensos</div>
+    {% if loja.data_liberacao_estimada %}
+    <div class="countdown-sub" style="margin-top:4px">lib. est. {{ loja.data_liberacao_estimada }}</div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="countdown-block alert-{{ loja._alert }}" style="min-width:160px; flex-direction:column; align-items:center; gap:4px">
+    <div class="countdown-label">Próximo pagamento</div>
+    {% if loja._days_remaining is none %}
+      <div class="countdown-days" style="font-size:18px">—</div>
+    {% elif loja._days_remaining <= 0 %}
+      <div class="countdown-days">VENCIDO</div>
+    {% else %}
+      <div class="countdown-days">{{ loja._days_remaining }}</div>
+      <div class="countdown-sub">dias úteis</div>
+    {% endif %}
+    {% if loja._next_payment %}
+      <div class="countdown-sub" style="margin-top:4px">{{ loja._next_payment }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── PAGAMENTOS ─────────────────────────────────────────────────── -->
+<div class="section" style="margin-bottom:20px">
+  <div class="section-header">
+    <span class="section-title">Pagamentos</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-sm" onclick="openRegistrarPagamento()">💰 Registrar pagamento</button>
+      {% if loja._suspenso %}
+      <button class="btn btn-primary btn-sm" onclick="reabilitarGateway()">✓ Reabilitar gateway</button>
+      {% else %}
+      <button class="btn btn-danger btn-sm" onclick="openSuspenderGateway()">⚠ Suspender gateway</button>
+      {% endif %}
+    </div>
+  </div>
+  <div class="section-body">
+
+    {% if loja._suspenso %}
+    <!-- alerta de suspensão -->
+    <div class="gateway-alert">
+      <div class="gateway-alert-icon">⚠</div>
+      <div style="flex:1">
+        <div class="gateway-alert-title">Pagamentos Retidos — Shopify Payments Suspenso</div>
+        <div class="gateway-alert-sub">Os fundos estão retidos até a reabilitação do gateway.</div>
+        {% if loja.data_liberacao_estimada %}
+        <div class="gateway-alert-sub" style="margin-top:4px">
+          Liberação estimada: <strong style="color:var(--txt)">{{ loja.data_liberacao_estimada }}</strong>
+        </div>
+        {% endif %}
+        <div class="gateway-release-row">
+          <input type="date" id="data-liberacao-inline" class="release-date-input"
+            value="{{ loja.data_liberacao_estimada or '' }}"
+            placeholder="Data estimada de liberação">
+          <button class="btn btn-secondary btn-sm" onclick="salvarDataLiberacao()">Atualizar estimativa</button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="payment-grid">
+      <div class="pay-item">
+        <span class="pay-label">Banco</span>
+        <span class="pay-val">{{ loja.banco or '—' }}</span>
+      </div>
+      <div class="pay-item{% if loja._suspenso %} alert-red{% endif %}">
+        <span class="pay-label">Gateway(s)</span>
+        <span class="pay-val">{{ loja.gateways | join(', ') if loja.gateways else '—' }}</span>
+        {% if loja._suspenso %}
+        <span class="pay-sub" style="color:var(--red)">Suspenso</span>
+        {% endif %}
+      </div>
+      <div class="pay-item">
+        <span class="pay-label">Último pagamento</span>
+        <span class="pay-val">{{ loja.ultimo_pagamento or '—' }}</span>
+      </div>
+      <div class="pay-item{% if not loja._suspenso %} alert-{{ loja._alert }}{% else %} alert-red{% endif %}">
+        <span class="pay-label">Próximo pagamento</span>
+        {% if loja._suspenso %}
+          <span class="pay-val">RETIDO</span>
+          <span class="pay-sub">gateway suspenso</span>
+        {% elif loja._days_remaining is none %}
+          <span class="pay-val">—</span>
+        {% elif loja._days_remaining <= 0 %}
+          <span class="pay-val">VENCIDO</span>
+          <span class="pay-sub">{{ loja._next_payment }}</span>
+        {% else %}
+          <span class="pay-val">{{ loja._next_payment }}</span>
+          <span class="pay-sub">{{ loja._days_remaining }} dias úteis restantes</span>
+        {% endif %}
+      </div>
+      <div class="pay-item">
+        <span class="pay-label">Ciclo</span>
+        <span class="pay-val">{{ loja.ciclo_pagamento_dias_uteis }} dias úteis</span>
+        {% if loja.data_ciclo_inicio %}
+        <span class="pay-sub">desde {{ loja.data_ciclo_inicio }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── STATUS ─────────────────────────────────────────────────────── -->
+<div class="section" style="margin-bottom:20px">
+  <div class="section-header">
+    <span class="section-title">Alterar Status</span>
+  </div>
+  <div class="section-body" style="padding:14px 20px">
+    <div class="status-buttons">
+      <button class="status-opt" data-val="Aquecendo">Aquecendo</button>
+      <button class="status-opt" data-val="Rodando">Rodando</button>
+      <button class="status-opt" data-val="Problema">Problema</button>
+      <button class="status-opt" data-val="Pausada">Pausada</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── FUNIL ──────────────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title">Funil de Aquecimento</span>
+    {% set done = loja.funil | selectattr('status','eq','concluida') | list | length %}
+    <span class="count-badge">{{ done }}/{{ loja.funil|length }} concluídas</span>
+  </div>
+  <div class="section-body" style="padding:8px 20px">
+    <div class="funnel">
+      {% for etapa in loja.funil %}
+      <div class="funnel-step {{ etapa.status }}">
+        <div class="step-marker">
+          {% if etapa.status == 'concluida' %}✓
+          {% elif etapa.status == 'problema' %}!
+          {% else %}{{ etapa.etapa }}{% endif %}
+        </div>
+        <div class="step-content">
+          <div class="step-top">
+            <span class="step-day">{{ etapa.dia }}</span>
+            <span class="step-name">{{ etapa.nome }}</span>
+            {% if etapa.status == 'concluida' %}
+              <span class="badge badge-concluida" style="font-size:10px">Concluída</span>
+            {% elif etapa.status == 'problema' %}
+              <span class="badge badge-problema-f" style="font-size:10px">Problema</span>
+            {% else %}
+              <span class="badge badge-pendente" style="font-size:10px">Pendente</span>
+            {% endif %}
+          </div>
+          {% if etapa.data %}<div class="step-date">📅 {{ etapa.data }}</div>{% endif %}
+          {% if etapa.observacao %}<div class="step-obs">"{{ etapa.observacao }}"</div>{% endif %}
+        </div>
+        <button class="step-edit-btn" onclick="editStep({{ etapa.etapa }}, '{{ etapa.status }}', '{{ etapa.data or '' }}', '{{ etapa.observacao | replace("'", "\\'") }}')">Editar</button>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ── EVENTOS ────────────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title">Log de Eventos</span>
+    <button class="btn btn-secondary btn-sm" onclick="openAddEvento()">+ Adicionar</button>
+  </div>
+  <div class="section-body" style="padding:8px 20px">
+    {% if loja.eventos %}
+    <div class="event-list">
+      {% for ev in loja.eventos %}
+      <div class="event-item">
+        <div class="event-dot"></div>
+        <div class="event-date">{{ ev.data }}</div>
+        <div class="event-desc">{{ ev.descricao }}</div>
+        <div class="event-actions">
+          <button class="event-action-btn"
+            data-idx="{{ loop.index0 }}"
+            data-date="{{ ev.data }}"
+            data-desc="{{ ev.descricao | e }}"
+            onclick="editEvento(this)">✏</button>
+          <button class="event-action-btn danger"
+            data-idx="{{ loop.index0 }}"
+            onclick="deleteEvento(this)">✕</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">Nenhum evento registrado ainda.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── AÇÕES ──────────────────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;flex-wrap:wrap;gap:10px">
+  <a href="/loja/{{ loja.id }}/editar" class="btn btn-secondary">✏ Editar dados da loja</a>
+  <div class="danger-zone" style="flex:1;margin:0;max-width:420px">
+    <div class="danger-zone-label">
+      <strong>Zona de perigo</strong>
+      Esta ação é irreversível.
+    </div>
+    <form method="POST" action="/loja/{{ loja.id }}/excluir" onsubmit="return confirm('Excluir {{ loja.nome }}? Essa ação não pode ser desfeita.')">
+      <button type="submit" class="btn btn-danger btn-sm">Excluir loja</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── MODAL: EDITAR ETAPA ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-step" onclick="if(event.target===this)closeModal('modal-step')">
+  <div class="modal">
+    <h3>Editar etapa do funil</h3>
+    <input type="hidden" id="ms-etapa">
+    <div class="field" style="margin-bottom:12px">
+      <label>Status</label>
+      <select id="ms-status">
+        <option value="pendente">Pendente</option>
+        <option value="concluida">Concluída</option>
+        <option value="problema">Problema</option>
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Data de conclusão</label>
+      <input type="date" id="ms-data">
+    </div>
+    <div class="field">
+      <label>Observação</label>
+      <textarea id="ms-obs" rows="3" placeholder="Notas sobre esta etapa..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-step')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveStep()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: ADICIONAR EVENTO ─────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-evento" onclick="if(event.target===this)closeModal('modal-evento')">
+  <div class="modal">
+    <h3>Registrar evento</h3>
+    <div class="field" style="margin-bottom:12px">
+      <label>Data</label>
+      <input type="date" id="me-data">
+    </div>
+    <div class="field">
+      <label>Descrição</label>
+      <textarea id="me-desc" rows="3" placeholder="O que aconteceu?"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-evento')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEvento()">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: EDITAR EVENTO ────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-edit-evento" onclick="if(event.target===this)closeModal('modal-edit-evento')">
+  <div class="modal">
+    <h3>Editar evento</h3>
+    <input type="hidden" id="ee-idx">
+    <div class="field" style="margin-bottom:12px">
+      <label>Data</label>
+      <input type="date" id="ee-data">
+    </div>
+    <div class="field">
+      <label>Descrição</label>
+      <textarea id="ee-desc" rows="3"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-evento')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditEvento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: REGISTRAR PAGAMENTO ──────────────────────────────────── -->
+<div class="modal-overlay" id="modal-pagamento" onclick="if(event.target===this)closeModal('modal-pagamento')">
+  <div class="modal">
+    <h3>Registrar pagamento recebido</h3>
+    <div class="field" style="margin-bottom:12px">
+      <label>Data do recebimento</label>
+      <input type="date" id="rp-data">
+    </div>
+    <div class="field">
+      <label>Valor recebido (opcional)</label>
+      <input type="text" id="rp-valor" placeholder="ex: €1.240,00">
+    </div>
+    <p style="font-size:12px;color:var(--txt3);margin-top:12px">
+      O ciclo de pagamento será recalculado a partir desta data.
+      Um evento será adicionado ao log automaticamente.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pagamento')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveRegistrarPagamento()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: SUSPENDER GATEWAY ────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-suspender" onclick="if(event.target===this)closeModal('modal-suspender')">
+  <div class="modal">
+    <h3 style="color:var(--red)">⚠ Suspender Shopify Payments</h3>
+    <p style="font-size:13px;color:var(--txt2);margin-bottom:16px">
+      O countdown será congelado e um alerta de retenção será exibido.
+    </p>
+    <div class="field">
+      <label>Data estimada de liberação dos fundos (opcional)</label>
+      <input type="date" id="sg-data">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-suspender')">Cancelar</button>
+      <button class="btn btn-danger" onclick="saveSuspenderGateway()">Confirmar suspensão</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ShopFlow{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    <div class="subtitle">Visão geral das lojas</div>
+  </div>
+  <span class="count-badge">{{ lojas|length }} loja{{ 's' if lojas|length != 1 else '' }}</span>
+</div>
+
+{% if lojas %}
+<div class="cards-grid">
+  {% for loja in lojas %}
+  <a href="/loja/{{ loja.id }}" class="store-card{% if loja._suspenso %} card-suspended{% endif %}">
+
+    <div class="card-top">
+      <div class="card-name">{{ loja.nome }}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <span class="badge badge-{{ loja.status|lower }}">{{ loja.status }}</span>
+        {% if loja._suspenso %}
+        <span class="badge" style="background:#2b0d0d;color:#ef4444;border:1px solid #5c1a1a">⚠ Suspenso</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card-domain">{{ loja.dominio }}</div>
+
+    {% if loja._suspenso %}
+    <div class="card-gateway-suspended">
+      <span class="gw-suspended-icon">⚠</span>
+      <div>
+        <div class="gw-suspended-title">Gateway Suspenso — Pagamentos Retidos</div>
+        {% if loja.data_liberacao_estimada %}
+        <div class="gw-suspended-sub">Liberação estimada: {{ loja.data_liberacao_estimada }}</div>
+        {% else %}
+        <div class="gw-suspended-sub">Shopify Payments suspenso</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card-rows">
+      <div class="card-row">
+        <span class="row-label">Entidade</span>
+        <span class="row-val">{{ loja.entidade.tipo }} · {{ loja.entidade.titular }}</span>
+      </div>
+      <div class="card-row">
+        <span class="row-label">Operação</span>
+        <span class="row-val">{{ loja.pais_operacao }}</span>
+      </div>
+      <div class="card-row">
+        <span class="row-label">Nicho</span>
+        <span class="row-val">{{ loja.nicho }}</span>
+      </div>
+      <div class="card-row">
+        <span class="row-label">Banco / Gateway</span>
+        <span class="row-val">{{ loja.banco or '—' }} / {{ loja.gateways | join(', ') }}</span>
+      </div>
+    </div>
+
+    {% if loja._suspenso %}
+    <div class="countdown-block alert-red">
+      <div>
+        <div class="countdown-label">Shopify Payments</div>
+        <div class="countdown-sub">fundos retidos</div>
+      </div>
+      <div class="countdown-right">
+        <div class="countdown-days" style="font-size:16px">RETIDO</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="countdown-block alert-{{ loja._alert }}">
+      <div>
+        <div class="countdown-label">Próximo pagamento</div>
+        {% if loja._next_payment %}
+          <div class="countdown-sub">{{ loja._next_payment }}</div>
+        {% endif %}
+      </div>
+      <div class="countdown-right">
+        {% if loja._days_remaining is none %}
+          <div class="countdown-days" style="font-size:15px">—</div>
+        {% elif loja._days_remaining <= 0 %}
+          <div class="countdown-days">VENCIDO</div>
+        {% else %}
+          <div class="countdown-days">{{ loja._days_remaining }}</div>
+          <div class="countdown-sub">dias úteis</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+  </a>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="section" style="text-align:center; padding:48px">
+  <p style="color:var(--txt3); margin-bottom:16px">Nenhuma loja cadastrada ainda.</p>
+  <a href="/loja/nova" class="btn btn-primary">+ Cadastrar primeira loja</a>
+</div>
+{% endif %}
+{% endblock %}
